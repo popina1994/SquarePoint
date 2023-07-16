@@ -41,4 +41,11 @@ Updating algorithm should be used to avoid non-negative values
 	§ First parallelize searches in several threads and compute mean/variance in several threads
 	§ In one thread just push back and resize by throwing out the old data
 ○ Accumulating error for floating point????
-At start of each day start computing mean from scratch and once sufficient time interval has passed switch the existing mean to the newly computed mean*/
+At start of each day start computing mean from scratch and once sufficient time interval has passed switch the existing mean to the newly computed mean
+Updating algorithm should be used to avoid non-negative values. Each 5m compute mean and variance and then use pairwise algorithms to update the general mean and variance in order to reduce the accuracy error.
+*/
+
+/*
+When you have significant number of outliers, variance will be higher, thus the condition number should be lower.
+In the beginning use updating method, then after n = 10000, estimate condition number based on the condition number and create several ranges which will be used to compute mean and variance. 
+Then add these low number of ranges use pairwise algorithms to compute mean and variance*/

@@ -133,10 +133,11 @@ MeanVariance computeSlide(int64_t elem)
             for (int idx = 0; idx < aIdxStart.size(); idx++)
             {
                 auto& idxStart = aIdxStart[idx];
-                auto& duration = aDuration[idx];
+                const auto& duration = aDuration[idx];
 
-                // auto startTime = curTime - duration;
-                // TODO: binary_search in the rotated array for startTime.
+                // auto startTime = curTime - durationConst;
+                // TODO: binary_search in the rotated array for startTime and set this to be new idxStart.
+                // idxStart = binary_search_lower_bound(vSumSquareElems.begin(), vSumSquareElems.end(), start_time);
                 
 
                 sum = vSumSquareElems[idxMsEnd].sum - vSumSquareElems[idxStart].sum;
@@ -153,6 +154,7 @@ MeanVariance computeSlide(int64_t elem)
             meanVar1Ms = computeMeanAndVariance(vSumSquareElems.back());
         }
     }
+    idxMsEnd = (idxMsEnd + 1) % vSumSquareElems.capacity();
     return meanVar1Ms;
 }
 
