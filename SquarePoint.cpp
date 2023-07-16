@@ -92,13 +92,17 @@ MeanVariance computeFloatMeanWest(double elem)
 
 
 constexpr uint32_t MAX_ELEMS_IN_DAY = 10;
+// 1ms, 10ms, 100ms, 500ms, 1s, 15s, 30s, 1m, 5m, 10m, 15m, 30m.
+constexpr uint32_t NUM_SLIDING_WINDS = 12;
 
 MeanVariance computeSlide(int64_t elem)
 {
     static std::vector<MeanVarianceSumSquareTime> vSumSquareElems;
-    static std::chrono::steady_clock::time_point startTime;
-    static uint32_t idx1MsStart;
-    static uint32_t idx1MsEnd;
+    
+    static std::array<uint32_t, NUM_SLIDING_WINDS> aIdxStart;
+    constexpr std::array<uint64_t, NUM_SLIDING_WINDS> aDuration{1, 10, 100, 500, 1'000, 15'000, 30'000, 60'000, 300'000, 600'000, 900'000, 1'800'000};
+    static uint32_t idxMsEnd;
+
     static bool isOneMsInit = false; 
     MeanVariance meanVar1Ms;
     auto curTime = std::chrono::high_resolution_clock::now();
@@ -108,8 +112,10 @@ MeanVariance computeSlide(int64_t elem)
     if (vSumSquareElems.size() == 0)
     {
         vSumSquareElems.resize(MAX_ELEMS_IN_DAY);    
-        startTime = curTime;
-        idx1MsStart = 0;
+        for (auto& idxStart: aIdxStart)
+        {
+            idxStart = 0;
+        }
         // Initialize all elements.
         vSumSquareElems.push_back({ elem, elem * elem, 1, curTimeMilis});
         meanVar1Ms = computeMeanAndVariance(vSumSquareElems.back());
@@ -124,22 +130,28 @@ MeanVariance computeSlide(int64_t elem)
                    vSumSquareElems.back().numElems + 1, curTimeMilis });
         if (isOneMsInit)
         {
-            //auto startTime = curTime - 1;
-            // TODO: binary_search in the rotated array for startTime.
-            // TODO: Then change the idx1MsStart  to the found entry. 
+            for (int idx = 0; idx < aIdxStart.size(); idx++)
+            {
+                auto& idxStart = aIdxStart[idx];
+                auto& duration = aDuration[idx];
 
-            sum = vSumSquareElems[idx1MsEnd].sum - vSumSquareElems[idx1MsStart].sum;
-            sumSquare = vSumSquareElems[idx1MsEnd].sumSquare - vSumSquareElems[idx1MsStart].sumSquare;
+                // auto startTime = curTime - duration;
+                // TODO: binary_search in the rotated array for startTime.
+                
 
-            numElems = vSumSquareElems[idx1MsEnd].numElems - vSumSquareElems[idx1MsStart].numElems;
+                sum = vSumSquareElems[idxMsEnd].sum - vSumSquareElems[idxStart].sum;
+                sumSquare = vSumSquareElems[idxMsEnd].sumSquare - vSumSquareElems[idxStart].sumSquare;
 
-            meanVar1Ms = computeMeanAndVariance({ sum, sumSquare, numElems });
+                numElems = vSumSquareElems[idxMsEnd].numElems - vSumSquareElems[idxStart].numElems;
+
+                meanVar1Ms = computeMeanAndVariance({ sum, sumSquare, numElems });
+            }
+            // vSumSquareElems.rresize(aIdxStart.end());
         }
         else
         {
             meanVar1Ms = computeMeanAndVariance(vSumSquareElems.back());
         }
-       
     }
     return meanVar1Ms;
 }
