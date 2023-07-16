@@ -27,6 +27,7 @@ struct MeanVarianceSumSquareTime: public MeanVarianceSumSquare
     int128_t sum;
     int256_t sumSquare;
     uint64_t numElems;
+    uint64_t time;
 };
 
 MeanVariance computeMeanAndVariance(const MeanVarianceSumSquare& sums)
@@ -34,7 +35,7 @@ MeanVariance computeMeanAndVariance(const MeanVarianceSumSquare& sums)
     MeanVariance retVal;
     
     retVal.mean = (double)sums.sum / (double)sums.numElems;
-    int256_t subWithoutCanc = (int256_t)(sums.numElems)* sums.sumSquare - sums.sum * sums.sum;
+    int256_t subWithoutCanc = (int256_t)(sums.numElems)* sums.sumSquare - (int256_t)sums.sum * (int256_t)sums.sum;
     uint128_t numElemsSquare = ((uint128_t)sums.numElems * (uint128_t)sums.numElems);
     // Potential optimization, manual division?
     retVal.variance = (double)(subWithoutCanc) / (double)(numElemsSquare);
@@ -94,21 +95,23 @@ constexpr uint32_t MAX_ELEMS_IN_DAY = 10;
 
 MeanVariance computeSlide(int64_t elem)
 {
-    static std::vector<MeanVarianceSumSquare> vSumSquareElems;
+    static std::vector<MeanVarianceSumSquareTime> vSumSquareElems;
     static std::chrono::steady_clock::time_point startTime;
     static uint32_t idx1MsStart;
     static uint32_t idx1MsEnd;
     static bool isOneMsInit = false; 
     MeanVariance meanVar1Ms;
-    
+    auto curTime = std::chrono::high_resolution_clock::now();
+    auto duration = curTime.time_since_epoch();
+    auto curTimeMilis = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
+
     if (vSumSquareElems.size() == 0)
     {
-        vSumSquareElems.resize(MAX_ELEMS_IN_DAY);
-        auto curTime = std::chrono::high_resolution_clock::now();
+        vSumSquareElems.resize(MAX_ELEMS_IN_DAY);    
         startTime = curTime;
         idx1MsStart = 0;
         // Initialize all elements.
-        vSumSquareElems.push_back({ elem, elem * elem, 1 });
+        vSumSquareElems.push_back({ elem, elem * elem, 1, curTimeMilis});
         meanVar1Ms = computeMeanAndVariance(vSumSquareElems.back());
     }
     else
@@ -116,12 +119,14 @@ MeanVariance computeSlide(int64_t elem)
         int128_t sum;
         int256_t sumSquare;
         uint64_t numElems;
+
+        vSumSquareElems.push_back({ vSumSquareElems.back().sum + elem, vSumSquareElems.back().sumSquare + (int128_t)elem * (int128_t)elem,
+                   vSumSquareElems.back().numElems + 1, curTimeMilis });
         if (isOneMsInit)
         {
-            // binary_search in the rotated array for the appropriate 
-            // TODO: replace idx1MsStart idx
-            idx1MsStart = 0;
-            //vSumSquareElems.rresize(idxStart, ...);
+            //auto startTime = curTime - 1;
+            // TODO: binary_search in the rotated array for startTime.
+            // TODO: Then change the idx1MsStart  to the found entry. 
 
             sum = vSumSquareElems[idx1MsEnd].sum - vSumSquareElems[idx1MsStart].sum;
             sumSquare = vSumSquareElems[idx1MsEnd].sumSquare - vSumSquareElems[idx1MsStart].sumSquare;
@@ -132,17 +137,12 @@ MeanVariance computeSlide(int64_t elem)
         }
         else
         {
-            // This is incorrect
             meanVar1Ms = computeMeanAndVariance(vSumSquareElems.back());
         }
-        vSumSquareElems.push_back({ vSumSquareElems.back().sum + elem, vSumSquareElems.back().sumSquare + elem * elem,
-                    vSumSquareElems.back().numElems + 1 });
+       
     }
     return meanVar1Ms;
 }
-
-
-
 
 int main()
 {
